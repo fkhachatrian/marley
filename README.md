@@ -53,7 +53,7 @@ Compare it to other "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 <tr>
 <td>Total</td>
-<td>782</td>
+<td>776</td>
 <td>6105</td>
 <td>4488</td>
 <td>2132</td>
