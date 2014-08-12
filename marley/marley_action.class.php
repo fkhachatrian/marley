@@ -1,10 +1,16 @@
 <?php
 
+//
+// MarleyAction class wraps-around a controller class 
+// or a callback function and provides functionality
+// for calling and assigning $this context to the wrapped
+// callback method/function.
+//
+
 class MarleyAction {
 
     //
-    // Array of controller specific options. 
-    // These values can be changed from the constructor.
+    // Array of default, controller specific options.
     //
     private $options = [
         'root_dir'                => '',
@@ -17,13 +23,15 @@ class MarleyAction {
     //
     // Reference to an internal callback closure object.
     //
-    private $callback;
+    private $callback_closure;
 
 
     //
-    // Public properties that expose information about type of a callback we're dealing with.
+    // Public properties that expose information about the action object
+    // and the type of callback we're dealing with.
     //
     public $is_controller;
+    public $controller_object;
     public $controller_name;
     public $action_name;
 
@@ -31,16 +39,19 @@ class MarleyAction {
     //
     // Set default options and create an internal reference to the requested callback function. 
     //
-    public function __construct($callback, $options) {
+    public function __construct($callback, $options = []) {
         $this->options['root_dir'] = $_SERVER['DOCUMENT_ROOT'];
+        $this->options = array_merge($this->options, $options);
 
-        if (is_array($options)) {
-            $this->options = array_merge($this->options, $options);
+        if (is_string($callback)) {
+            $this->set_controller_info($callback);
+            $this->initialize_controller();
+            $this->callback_closure = $this->controller_callback();
+        } else {
+            $this->callback_closure = $callback;
         }
 
-        $this->callback = is_string($callback) ? $this->controller_callback($callback) : $callback;
-
-        if(!is_callable($this->callback)) {
+        if (!is_callable($this->callback_closure)) {
             throw new InvalidArgumentException('Callback function isn\'t callable.');
         }
     }
@@ -53,13 +64,13 @@ class MarleyAction {
     // $context is an object which becomes $this inside the callback function.
     //
     public function run($params = null, $context = null) {
-        $f = $this->callback;
+        $f = $this->callback_closure;
 
         if ($context) {
             $f = $f->bindTo($context);
         }
 
-        if($params) {
+        if ($params) {
             call_user_func_array($f, $params);
         } else {
             $f();
@@ -68,34 +79,47 @@ class MarleyAction {
 
 
     //
-    // Extract a requested function from a controller class.
+    // Extract controller and action names from a provided string.
     //
-    // The passed $callback string has this format: `controller#action`, 
+    // The string should be in this format: `controller#action`, 
     // where `controller` is a name (without suffix) of a controller class
     // and `action` is a name of a method inside that controller class.
     //
-    private function controller_callback($callback) {
-        $o = $this->options;
-
-        // Extract controller name and action name from the recieved callback string.
-        $this->is_controller   = true;
-        $controller_parts      = explode('#', $callback);
+    private function set_controller_info($str) {
+        $controller_parts      = explode('#', $str);
         $this->controller_name = $controller_parts[0];
         $this->action_name     = $controller_parts[1];
+        $this->is_controller   = true;
+    }
 
-        // Include controller class file.
-        $path = $o['root_dir'] . $o['controller_dir'] . '/' . $this->controller_name . $o['controller_file_suffix'];
-        require_once $path;
 
-        // Create a controller object from the class we just included.
-        $class  = ucfirst($this->controller_name) . $o['controller_class_suffix'];
-        $object = new $class;
+    //
+    // Dynamically include controller class and initialize it.
+    //
+    private function initialize_controller() {
+        require_once $this->controller_path();
+        $class = ucfirst($this->controller_name) . $this->options['controller_class_suffix'];
+        $this->controller_object = new $class;
+    }
 
-        // Find out the method name, with or without optional underscore `_` before its name.
-        $method = method_exists($object, $this->action_name) ? $this->action_name : '_' . $this->action_name;
 
-        // Get the requested method of the controller and return it.
-        return (new ReflectionMethod($object, $method))->getClosure($object);
+    //
+    // Extract the requested callback function from a controller object.
+    //
+    private function controller_callback() {
+        $method_name = str_replace('-', '_', $this->action_name);
+        $method = new ReflectionMethod($this->controller_object, $method_name);
+        return $method->getClosure($this->controller_object);
+    }
+
+
+    //
+    // Determine a controller file path.
+    //
+    private function controller_path() {
+        $controller_directory = $this->options['root_dir'] . $this->options['controller_dir'] . '/' ;
+        $controller_filename  = $this->controller_name . $this->options['controller_file_suffix'];
+        return $controller_directory . $controller_filename;
     }
 
 }

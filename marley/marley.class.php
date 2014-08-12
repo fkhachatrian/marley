@@ -1,9 +1,9 @@
 <?php
 
 //
-// Marley 0.2
+// Marley 0.4
 // 
-// (c) Lasha Tavartkiladze and Elva.
+// (c) Lasha Tavartkiladze
 // Distributed under the MIT license.
 //
 // Docs and examples: 
@@ -11,38 +11,71 @@
 //
 
 
-require_once 'marley_url.class.php';
-require_once 'marley_action.class.php';
-require_once 'marley_template.class.php';
-require_once 'marley_context.class.php';
-
-
 class Marley {
 
     //
-    // Global default options.
+    // List of all global options that will be used as defaults 
+    // for all objects and methods inside Marley.
     //
-    private $global_options = [
-        'root_dir'       => '',
-        'template_dir'   => '/views',
-        'controller_dir' => '/controllers'
-    ];
+    private $global_options = [];
 
 
     //
-    // Instance of the MarleyUrl class.
+    // Key/Value list of all shared objects.
+    // Each key/value will become a property of the context object.
     //
-    private $url;
+    private $shared_objects = [];
+
+
+    //
+    // Instance of the MarleyUrlRoute class.
+    //
+    private $url_route;
  
 
     //
-    // Create an Marley object and set default global options.
+    // Create a Marley object and optionally specify some default settings.
     //
-    public function __construct($global_options = []) {
-        $this->url = new MarleyUrl($_SERVER['REQUEST_URI']);
+    public function __construct($options = []) {
+        $this->global_options = array_merge($this->global_options, $options);
 
-        $this->global_options['root_dir'] = $_SERVER['DOCUMENT_ROOT'];
-        $this->global_options = array_merge($this->global_options, $global_options);
+        $this->include_all_classes();
+        $this->url_route = new MarleyUrlRoute($_SERVER['REQUEST_URI']);
+    }
+
+
+    //
+    // Get or set global options.
+    //
+    public function config($options) {
+        if (is_array($options)) {
+            array_merge($this->global_options, $options);
+        } else if (is_string($options)) {
+            $key = $options;
+            return $this->global_options[$key];    
+        }
+    }
+
+
+    //
+    // Add an object to the shared objects list
+    //
+    public function share($name, $object) {
+        $this->shared_objects[$name] = $object;
+    }
+
+
+    //
+    // Create a Rails-style REST resource.
+    //
+    public function resource($name) {
+        $this->get(  "/",                   "{$name}#index" );
+        $this->get(  "/{$name}/new",        "{$name}#new_" );
+        $this->post( "/{$name}/create",     "{$name}#create" );
+        $this->get(  "/{$name}/:id/edit",   "{$name}#edit" );
+        $this->post( "/{$name}/:id/update", "{$name}#update" );
+        $this->post( "/{$name}/:id/delete", "{$name}#delete" );
+        $this->get(  "/{$name}/:id",        "{$name}#show" );
     }
 
 
@@ -66,9 +99,14 @@ class Marley {
     // Map current HTTP method and url to the passed route.
     //
     private function map($method, $route, $callback, $route_options) {
-        if ($_SERVER['REQUEST_METHOD'] === $method && $match = $this->url->match($route)) {
+        if ($_SERVER['REQUEST_METHOD'] === $method && $match = $this->url_route->match($route)) {
+            if (is_array($match['params'])) {
+                $_GET = array_merge($_GET, $match['params']);
+            }
             $this->run($callback, $match['params'], $route_options);
-            exit; // Exit execution after the first match.
+            // Currently we don't support route passing, 
+            // so exit execution after the first match.
+            exit;
         }
     }
 
@@ -78,26 +116,45 @@ class Marley {
     //
     private function run($callback, $route_params, $route_options) {
         $options = array_merge($this->global_options, $route_options);
-
-        $context = new MarleyContext($options);
         $action  = new MarleyAction($callback, $options);
 
-        // Change template directory to a folder with the same name as controller
-        // if the action is a controller method.
         if ($action->is_controller) {
-            $context->set_option('template_dir', $options['template_dir'] . '/' . $action->controller_name);
+            $options['templates_sub_dir'] = $action->controller_name;
+        } 
+
+        $context = new MarleyContext($options);
+
+        if ($action->is_controller) {
+            $context->controller = $action->controller_object;
+        }
+        
+        // Add all shared objects as context's properties.
+        foreach($this->shared_objects as $name => $object) {
+            if(!$context->$name) {
+                $context->$name = $object;
+            }
         }
 
         // Call the callback function, pass route paremeters 
         // and bind it to the created context object.
         $action->run($route_params, $context);
 
-        // Automatically render template if the action is a controller method
-        // and if template was not already rendered after $action->run() was called.
-        $template_name = $action->action_name;
-        if ($action->is_controller && !$context->is_rendered($template_name)) {
-            $context->render($template_name);
+        // If action is a controller and we reached this code,
+        // it means render() wasn't called, so we call it automatically.
+        if ($action->is_controller) {
+            $context->render($action->action_name);
         }
+    }
+
+
+    // 
+    // Include all required Marley classes.
+    //
+    private function include_all_classes() {
+        require_once 'marley_url_route.class.php';
+        require_once 'marley_action.class.php';
+        require_once 'marley_template.class.php';
+        require_once 'marley_context.class.php';
     }
 
 }

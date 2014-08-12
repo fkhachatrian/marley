@@ -1,20 +1,27 @@
 <?php
 
+//
+// MarleyTemplate class wraps-around a template directrory and 
+// then loads and compiles templates and layouts from that directory.
+//
+// You can override default options from the constructor or
+// directly from the find_and_render() method.
+//
+
 class MarleyTemplate {
 
     //
-    // Array of template options. 
-    // These values can be changed from the constructor.
+    // Array of default options.
     //
     private $options = [
-        'root_dir'     => '',
-        'template_dir' => '/views',
-        'template'     => '',
-        'layout_dir'   => '/views/layouts',
-        'layout'       => 'main',
-        'data'         => [],
-        'context'      => null,
-        'extension'    => '.html.php'
+        'root_dir'          => '',
+        'templates_dir'     => '/views',
+        'templates_sub_dir' => '',
+        'layouts_dir'       => '/views/layouts',
+        'layout'            => 'main',
+        'extension'         => '.html.php',
+        'data'              => [],
+        'context'           => null
     ];
 
 
@@ -24,46 +31,45 @@ class MarleyTemplate {
     // Directory root is set to $_SERVER['DOCUMENT_ROOT'], 
     // but can be overriden from the passsed options.
     //
-    public function __construct($options) {
+    public function __construct($options = []) {
         $this->options['root_dir'] = $_SERVER['DOCUMENT_ROOT'];
-
-        if (is_array($options)) {
-            $this->options = array_merge($this->options, $options);
-        }
+        $this->options = array_merge($this->options, $options);
     }
 
 
     //
-    // Print a template.
+    // Find and render a template file with optional layout.
     // If layout is specified, template will be inserted inside it.
     //
-    // Each key/value pair inside $data array/object will become local variables inside a template
-    // and $this inside a template will refer to the passed $context object.
+    // Each key/value pair inside `data` array/object will become local variables inside a template
+    // and $this inside a template will refer to the passed `context` object.
     //
-    public function render($data = [], $context = null) {
-        $o = $this->options;
-
-        if ($o['layout']) {
-            $layout = $this->compile($o['layout_dir'], $o['layout'], $data, $context);
+    public function find_and_render($template_name, $options = []) {
+        $options = array_merge($this->options, $options);
+        $template_path = $this->template_path($template_name, $options);
+        
+        if ($options['layout']) {
+            $layout_path = $this->layout_path($options['layout'], $options);
+            $layout = $this->render($layout_path, $options['data'], $options['context']);
         }
 
-        $template = $this->compile($o['template_dir'], $o['template'], $data, $context);
-
-        $html = $layout ? str_replace('{{yield}}', $template, $layout) : $template;
-        print $html;
+        $template = $this->render($template_path, $options['data'], $options['context']);
+        $content  = $layout ? str_replace('{{yield}}', $template, $layout) : $template;
+        
+        return $content;
     }
 
 
     //
-    // Compile a template file and return the resulting content.
+    // Render a template and return the resulting content.
     //
     // $data is an associative array whose keys/values will be local variables inside a template.
     // $context is an object which becomes $this inside a template file.
     //
-    private function compile($dir, $name, $data, $context) {
-        $f = $this->template($dir, $name);
-        
-        if ($context && is_object($contex)) {
+    public function render($file_path, $data = [], $context = null) {
+        $f = $this->compile($file_path);
+
+        if($context) {
             $f = $f->bindTo($context);
         }
 
@@ -75,21 +81,68 @@ class MarleyTemplate {
 
     //
     // Create a anonymouse function that wraps-over a template file.
-    // This will allow us to specify template data later.
+    // This will allow us to specify template data and context later.
     //
-    private function template($dir, $name) {
-        $path = $this->options['root_dir'] . $dir. '/' . $name . $this->options['extension'];
-
-        if(!file_exists($path) || !is_readable($path)) {
-            throw new InvalidArgumentException('File ' . $name . ' does not exists or it\'s not readable.');
-        } else {
-            return function($data) use (&$path) {
+    public function compile($file_path) {
+        if(file_exists($file_path)) {
+            return function($data) use (&$file_path) {
                 extract($data, EXTR_SKIP);
                 ob_start();
-                include $path;
+                include $file_path;
                 return ob_get_clean();
-            };
+            };   
+        } else {
+            throw new InvalidArgumentException('File ' . $file_path . ' does not exists.');
         }
+    }
+
+
+    //
+    // Determine a template path (Inspired by: http://guides.rubyonrails.org/layouts_and_rendering.html)
+    // There are only 3 types of paths used:
+    // 1. An absolute path.
+    // 2. A path relative to the templates directory.
+    // 3. A path relative to a sub directory inside the templates direactory.
+    //
+    private function template_path($path, $options) {
+        $templates_root_directory = $options['root_dir'] . $options['templates_dir'] . '/';
+        $path = $this->append_extension($path, $options);
+
+        // If a path starts with a slash `/`, we assume it's an absolute path.
+        if (preg_match('/^\//', $path)) {
+            return $path;
+        }
+
+        // If a path doesn't include a slash `/` at all and the `templates_sub_dir`
+        // option is specified, we assume it's a relative path to that sub-directory.
+        else if ($options['templates_sub_dir'] && !preg_match('/\//', $path)) {
+            return $templates_root_directory . $options['templates_sub_dir'] . '/' . $path;
+        }
+
+        // For everything else, including paths that include a slash `/` inside it,
+        // we assume it's a relative path to the templates directory.
+        else {
+            return $templates_root_directory . $path;
+        }
+    }
+
+
+    //
+    // Determine a layout path.
+    //
+    private function layout_path($path, $options) {
+        $layouts_root_directory = $options['root_dir'] . $options['layouts_dir'] . '/';
+        $path = $this->append_extension($path, $options);
+        return $layouts_root_directory . $path;
+    }
+
+
+    //
+    // Append extension to a path only if it doesn't already have one.
+    //
+    private function append_extension($path, $options) {
+        $path_contains_extension = strpos($path, $options['extension']) !== false;
+        return $path_contains_extension ? $path : $path . $options['extension'];
     }
 
 }
