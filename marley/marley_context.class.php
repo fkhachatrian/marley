@@ -1,7 +1,7 @@
 <?php
 
 //
-// MarleyContext class provides is an object that is shared 
+// MarleyContext is an object that is shared 
 // between a controller/callback and a template.
 //
 // All helper methods, shared objects, plugins and etc.
