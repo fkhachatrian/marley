@@ -23,7 +23,7 @@ Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 <tr>
 <td>Source lines</td>
-<td><b>215</b></td>
+<td><b>330</b></td>
 <td>2506</td>
 <td>2416</td>
 <td>960</td>
@@ -33,7 +33,7 @@ Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 <tr>
 <td>Comments</td>
-<td>229</td>
+<td>315</td>
 <td>3066</td>
 <td>1364</td>
 <td>901</td>
@@ -43,7 +43,7 @@ Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 <tr>
 <td>Empty lines</td>
-<td>108</td>
+<td>141</td>
 <td>553</td>
 <td>711</td>
 <td>273</td>
@@ -53,7 +53,7 @@ Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 <tr>
 <td>Total</td>
-<td>550</td>
+<td>782</td>
 <td>6105</td>
 <td>4488</td>
 <td>2132</td>
