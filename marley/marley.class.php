@@ -69,7 +69,7 @@ class Marley {
     // Create a Rails-style REST resource.
     //
     public function resource($name) {
-        $this->get(  "/",                   "{$name}#index" );
+        $this->get(  "/{$name}",            "{$name}#index" );
         $this->get(  "/{$name}/new",        "{$name}#new_" );
         $this->post( "/{$name}/create",     "{$name}#create" );
         $this->get(  "/{$name}/:id/edit",   "{$name}#edit" );
