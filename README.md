@@ -7,8 +7,8 @@ http://marley.elva.org
 
 <p>&nbsp;</p>
 
-__Lots of handy features with just *215* lines of source code. ([sloc](https://www.npmjs.org/package/sloc))__  
-Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
+__The smallest PHP framework. ([sloc](https://www.npmjs.org/package/sloc))__  
+Compare it to other "micro" frameworks: *(Stats date: 27.07.2014)*
 
 <table>
 <tr>
@@ -63,3 +63,10 @@ Compare it to other PHP "micro" frameworks: *(Stats date: 27.07.2014)*
 </tr>
 </table>
 
+
+<p>&nbsp;</p>
+
+* * *
+
+Designed and built by <a href="http://github.com/coloraggio">Lasha Tavartkiladze</a> at <a href="http://elva.org" target="_blank">Elva</a>  
+Code and documentation are licensed under the <a href="http://opensource.org/licenses/MIT">MIT license</a>
