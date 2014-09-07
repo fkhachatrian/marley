@@ -49,7 +49,7 @@ class Marley {
     //
     public function config($options) {
         if (is_array($options)) {
-            array_merge($this->global_options, $options);
+            $this->global_options = array_merge($this->global_options, $options);
         } else if (is_string($options)) {
             $key = $options;
             return $this->global_options[$key];    
