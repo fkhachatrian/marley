@@ -112,7 +112,13 @@ class MarleyUrlRoute {
             ];
             // If there're parameters
             if (count($matches) > 1) {
-                $param_values    = array_slice($matches, 1);
+                $param_values = array_slice($matches, 1);
+                
+                // Remove unnecessary query string match (if exists) from the list of values.
+                if (count($param_values) > count($param_names)) {
+                    array_pop($param_values);
+                }
+                
                 $match['params'] = array_combine($param_names, $param_values);
             }
             return $match;
